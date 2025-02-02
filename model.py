@@ -9,6 +9,7 @@ from imblearn.over_sampling import SMOTE
 import numpy as np
 import ast
 import joblib
+import matplotlib.pyplot as plt
 
 # Load and preprocess data
 songs = pd.read_csv('training_data.csv').drop('track_id', axis=1)
@@ -50,13 +51,26 @@ y_test = pd.get_dummies(y_test).values
 model = Sequential()
 model.add(Input(shape=(x_train.shape[1], 1)))
 # First Convolutional Block
-model.add(Conv1D(32, kernel_size=3))
-model.add(BatchNormalization())
-# Flatten and Dense layers
-model.add(Flatten())
-model.add(Dense(16))
+model.add(Conv1D(64, kernel_size=3))
 model.add(BatchNormalization())
 model.add(LeakyReLU(alpha=0.2))
+model.add(MaxPooling1D(pool_size=2))
+# Second Convolutional Block
+model.add(Conv1D(128, kernel_size=3))
+model.add(BatchNormalization())
+model.add(LeakyReLU(alpha=0.2))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Dropout(0.3))
+# Flatten and Dense layers
+model.add(Flatten())
+model.add(Dense(128))
+model.add(BatchNormalization())
+model.add(LeakyReLU(alpha=0.2))
+model.add(Dropout(0.3))
+model.add(Dense(64))
+model.add(BatchNormalization())
+model.add(LeakyReLU(alpha=0.2))
+model.add(Dropout(0.3))
 # Output layer (7 genres)
 model.add(Dense(7, activation='softmax'))
 
@@ -73,7 +87,7 @@ early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=1
 learning_rate_reduction = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.5, min_lr=1e-6)
 
 # Train the model
-history = model.fit(x_train, y_train, epochs=100, batch_size=64, validation_split=0.2, callbacks=[early_stopping, learning_rate_reduction])
+history = model.fit(x_train, y_train, epochs=100, batch_size=64, validation_data=(x_test, y_test), callbacks=[early_stopping, learning_rate_reduction])
 
 # Evaluate the model
 test_loss, test_accuracy, test_top_3_accuracy = model.evaluate(x_test, y_test)
@@ -89,3 +103,39 @@ if k == 1:
 
 # Print model summary
 model.summary()
+
+# Plot training & validation accuracy
+plt.figure(figsize=(12, 5))
+
+# Training vs Validation Accuracy
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Training vs. Validation Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# Training vs Validation Loss
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Training vs. Validation Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# Plot training vs. validation Top-3 Accuracy
+plt.figure(figsize=(6, 5))
+plt.plot(history.history['lambda'], label='Training Top-3 Accuracy')
+plt.plot(history.history['val_lambda'], label='Validation Top-3 Accuracy')
+plt.title('Training vs. Validation Top-3 Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Top-3 Accuracy')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
